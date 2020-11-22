@@ -1,0 +1,320 @@
+#!/bin/bash
+{
+	#////////////////////////////////////
+	# DietPi Explorer. Bare-bones, no frills file man
+	#
+	#////////////////////////////////////
+	# Created by Daniel Knight / daniel.knight@dietpi.com / dietpi.com
+	#
+	#////////////////////////////////////
+	#
+	# Info:
+	# - Location: /DietPi/dietpi/dietpi-explorer
+	#
+	# Usage:
+	# - dietpi-explorer		(menu system)
+	# - dietpi-explorer 1		Select a file/folder mode, return result for other applications to /tmp/.dietpi-explorer_selected_location
+	#////////////////////////////////////
+
+	# Import DietPi-Globals --------------------------------------------------------------
+	. /DietPi/dietpi/func/dietpi-globals
+	G_PROGRAM_NAME='DietPi-Explorer'
+	G_CHECK_ROOT_USER
+	G_INIT
+	# Import DietPi-Globals --------------------------------------------------------------
+
+	disable_error=1 G_CHECK_VALIDINT "$1" && INPUT=$1 || INPUT=0
+
+	CURRENT_DIRECTORY=
+	TARGET_FP='/home'
+	[[ $2 ]] && TARGET_FP=$2
+
+	CP_MODE=0 # 0=CP 1=MV
+	CP_SOURCE=
+	CP_TARGET=
+
+	Process_Copy_Move(){
+
+		if [[ $CP_TARGET ]]; then
+
+			if (( $CP_MODE == 0 )); then
+
+				G_ERROR_HANDLER_INFO_ONLY=1 G_RUN_CMD cp -a "$CP_SOURCE" "$CP_TARGET"/
+
+			elif (( $CP_MODE == 1 )); then
+
+				G_ERROR_HANDLER_INFO_ONLY=1 G_RUN_CMD mv "$CP_SOURCE" "$CP_TARGET"/
+
+			fi
+
+		fi
+
+		# Reset for next run
+		CP_MODE=0
+		CP_SOURCE=
+		CP_TARGET=
+
+	}
+
+	Select_Menu(){
+
+		if [[ $TARGET_FP == '..' || $TARGET_FP == '/' ]]; then
+
+			cd "$TARGET_FP"
+
+		else
+
+			local target_type_info='File'
+			G_WHIP_MENU_ARRAY=('' '●─ Navigation')
+			if [[ -f $TARGET_FP && $INPUT != 1 ]]; then # Disable open of files in select mode.
+
+				G_WHIP_MENU_ARRAY+=('Open' " : Open '$TARGET_FP' in Nano (text edit)")
+
+			elif [[ -d $TARGET_FP ]]; then
+
+				target_type_info='Directory'
+				G_WHIP_MENU_ARRAY+=('Open' " : Navigate to '$TARGET_FP'")
+
+			fi
+
+			if (( $INPUT == 1 )); then
+
+				G_WHIP_MENU_ARRAY+=('Select' " : Use '$CURRENT_DIRECTORY/$TARGET_FP'")
+
+			else
+
+				G_WHIP_MENU_ARRAY+=('' '●─ IO operations ')
+				G_WHIP_MENU_ARRAY+=('Rename' '')
+				G_WHIP_MENU_ARRAY+=('Copy' '')
+				G_WHIP_MENU_ARRAY+=('Move' '')
+
+				if [[ $CP_SOURCE && -d $CURRENT_DIRECTORY/$TARGET_FP && $CP_SOURCE != $CURRENT_DIRECTORY/$TARGET_FP ]]; then
+
+					if (( $CP_MODE == 0 )); then
+
+						G_WHIP_MENU_ARRAY+=('Paste' " : Copy $CP_SOURCE to $CURRENT_DIRECTORY/$TARGET_FP/")
+
+					elif (( $CP_MODE == 1 )); then
+
+						G_WHIP_MENU_ARRAY+=('Paste' " : Move $CP_SOURCE to $CURRENT_DIRECTORY/$TARGET_FP/")
+
+					fi
+
+				fi
+
+				G_WHIP_MENU_ARRAY+=('Delete' '')
+				G_WHIP_MENU_ARRAY+=('' '●─ Permissions ')
+				G_WHIP_MENU_ARRAY+=('Chown' ' : Set user and group permissions')
+				G_WHIP_MENU_ARRAY+=('Chmod' ' : Set read/write/exec permissions')
+
+			fi
+
+			G_WHIP_DEFAULT_ITEM='Open'
+
+			local permission_current_user
+			local permission_current_group
+			local permission_current_bit
+			local chmod_current
+			if [[ -d $CURRENT_DIRECTORY/$TARGET_FP ]]; then
+
+				permission_current_user=$(ls -lha "$CURRENT_DIRECTORY" | mawk -v pat="$TARGET_FP" '$0~pat {print $3;exit}')
+				permission_current_group=$(ls -lha "$CURRENT_DIRECTORY" | mawk -v pat="$TARGET_FP" '$0~pat {print $4;exit}')
+				permission_current_bit=$(ls -lha "$CURRENT_DIRECTORY" | mawk -v pat="$TARGET_FP" '$0~pat {print $1;exit}')
+				chmod_current=$(stat --format '%a' "$CURRENT_DIRECTORY/$TARGET_FP")
+
+			else
+
+				permission_current_user=$(ls -lha "$CURRENT_DIRECTORY/$TARGET_FP" | mawk '{print $3}')
+				permission_current_group=$(ls -lha "$CURRENT_DIRECTORY/$TARGET_FP" | mawk '{print $4}')
+				permission_current_bit=$(ls -lha "$CURRENT_DIRECTORY/$TARGET_FP" | mawk '{print $1}')
+				chmod_current=$(stat --format '%a' "$CURRENT_DIRECTORY/$TARGET_FP")
+
+			fi
+
+			if G_WHIP_MENU "$target_type_info: $CURRENT_DIRECTORY/$TARGET_FP
+ - Exec permissions       : $permission_current_bit ($chmod_current)
+ - User/Group permissions : $permission_current_user:$permission_current_group\n"; then
+
+				if [[ $G_WHIP_RETURNED_VALUE == 'Open' ]]; then
+
+					if [[ -d $TARGET_FP ]]; then
+
+						cd "$TARGET_FP"
+
+					else
+
+						nano "$TARGET_FP"
+
+					fi
+
+				elif [[ $G_WHIP_RETURNED_VALUE == 'Select' ]]; then
+
+					echo "$CURRENT_DIRECTORY/$TARGET_FP" > /tmp/.dietpi-explorer_selected_location
+					exit 0
+
+				elif [[ $G_WHIP_RETURNED_VALUE == 'Copy' ]]; then
+
+					CP_SOURCE="$CURRENT_DIRECTORY/$TARGET_FP"
+					CP_MODE=0
+
+				elif [[ $G_WHIP_RETURNED_VALUE == 'Move' ]]; then
+
+					CP_SOURCE="$CURRENT_DIRECTORY/$TARGET_FP"
+					CP_MODE=1
+
+				elif [[ $G_WHIP_RETURNED_VALUE == 'Paste' ]]; then
+
+					CP_TARGET="$CURRENT_DIRECTORY/$TARGET_FP"
+					Process_Copy_Move
+
+				elif [[ $G_WHIP_RETURNED_VALUE == 'Rename' ]]; then
+
+					G_WHIP_DEFAULT_ITEM=$TARGET_FP
+					if G_WHIP_INPUTBOX "Please enter a new name for '$TARGET_FP'"; then
+
+						G_ERROR_HANDLER_INFO_ONLY=1 G_RUN_CMD mv "$TARGET_FP" "$G_WHIP_RETURNED_VALUE"
+
+					fi
+
+				elif [[ $G_WHIP_RETURNED_VALUE == 'Delete' ]]; then
+
+					if G_WHIP_YESNO "Delete $CURRENT_DIRECTORY/$TARGET_FP?"; then
+
+						G_ERROR_HANDLER_INFO_ONLY=1 G_RUN_CMD rm -R "$CURRENT_DIRECTORY/$TARGET_FP"
+
+					fi
+
+				elif [[ $G_WHIP_RETURNED_VALUE == 'Chown' ]]; then
+
+					G_WHIP_MENU_ARRAY=()
+
+					while read -r line
+					do
+
+						G_WHIP_MENU_ARRAY+=( "$line" '' )
+
+					done <<< "$(getent passwd | cut -d: -f1 | sort)"
+
+					G_WHIP_DEFAULT_ITEM=$permission_current_user
+					if G_WHIP_MENU 'Chown permissions:\n - Please select a User'; then
+
+						local chown_user=$G_WHIP_RETURNED_VALUE
+
+						G_WHIP_MENU_ARRAY=()
+
+						while read -r line
+						do
+
+							G_WHIP_MENU_ARRAY+=( "$line" '' )
+
+						done <<< "$(getent group | cut -d: -f1 | sort)"
+
+						G_WHIP_DEFAULT_ITEM=$permission_current_group
+						if G_WHIP_MENU 'Chown permissions:\n - Please select a Group'; then
+
+							local chown_group=$G_WHIP_RETURNED_VALUE
+							G_ERROR_HANDLER_INFO_ONLY=1 G_RUN_CMD chown -R $chown_user:$chown_group "$CURRENT_DIRECTORY/$TARGET_FP"
+
+						fi
+
+					fi
+
+				elif [[ $G_WHIP_RETURNED_VALUE == 'Chmod' ]]; then
+
+					G_WHIP_DEFAULT_ITEM=$chmod_current
+					if G_WHIP_INPUTBOX 'Chmod permissions:\n - Please enter a value'; then
+
+						G_ERROR_HANDLER_INFO_ONLY=1 G_RUN_CMD chmod -R $G_WHIP_RETURNED_VALUE "$CURRENT_DIRECTORY/$TARGET_FP"
+
+					fi
+
+				fi
+
+			fi
+
+		fi
+
+	}
+
+	#/////////////////////////////////////////////////////////////////////////////////////
+	# MENUS
+	#/////////////////////////////////////////////////////////////////////////////////////
+	TARGETMENUID=0
+
+	# TARGETMENUID=0
+	Menu_Main(){
+
+		CURRENT_DIRECTORY=$PWD
+		G_WHIP_MENU_ARRAY=()
+
+		if [[ $CURRENT_DIRECTORY == '/' ]]; then
+
+			CURRENT_DIRECTORY=
+
+		else
+
+			G_WHIP_MENU_ARRAY=(
+
+				'..' 'Previous Directory'
+				'/' 'Root Directory'
+
+			)
+
+		fi
+
+		for item in "$CURRENT_DIRECTORY"/*
+		do
+
+			if [[ -f $item ]]; then
+
+				G_WHIP_MENU_ARRAY+=( "${item##*/}" " : $(wc -c < "$item") Bytes" )
+
+			elif [[ $item != *'/*' ]]; then
+
+				G_WHIP_MENU_ARRAY+=( "${item##*/}" '' )
+
+			fi
+
+		done
+
+		G_WHIP_BUTTON_CANCEL_TEXT='Exit'
+		G_WHIP_DEFAULT_ITEM=$TARGET_FP
+		if G_WHIP_MENU "$CURRENT_DIRECTORY"; then
+
+			TARGET_FP=$G_WHIP_RETURNED_VALUE
+			Select_Menu
+
+		else
+
+			Menu_Exit
+
+		fi
+
+	}
+
+	Menu_Exit(){
+
+		G_WHIP_SIZE_X_MAX=50
+		G_WHIP_YESNO "Exit $G_PROGRAM_NAME?" && TARGETMENUID=-1 # Exit
+
+	}
+
+	#/////////////////////////////////////////////////////////////////////////////////////
+	# Main Loop
+	#/////////////////////////////////////////////////////////////////////////////////////
+	# Default to users home dir
+	cd "$TARGET_FP"
+
+	# Start Menu
+	while (( $TARGETMENUID > -1 ))
+	do
+
+		G_TERM_CLEAR
+		Menu_Main
+
+	done
+
+	#-----------------------------------------------------------------------------------
+	exit 0
+	#-----------------------------------------------------------------------------------
+}

@@ -1,0 +1,39 @@
+#!/bin/bash
+{
+	#////////////////////////////////////
+	# DietPi PreBoot Script
+	#
+	#////////////////////////////////////
+	# Created by Daniel Knight / daniel.knight@dietpi.com / dietpi.com
+	#
+	#////////////////////////////////////
+	#
+	# Info:
+	# - Filename: /DietPi/dietpi/preboot
+	# - Activates on boot from dietpi-preboot.service, runs before dietpi-boot.service and networking
+	#////////////////////////////////////
+
+	# Import DietPi-Globals --------------------------------------------------------------
+	/DietPi/dietpi/func/dietpi-obtain_hw_model # Runs every boot to allow e.g. switching SDcards between devices and to be failsafe
+	. /DietPi/dietpi/func/dietpi-globals
+	G_PROGRAM_NAME='DietPi-PreBoot'
+	G_INIT
+	# Import DietPi-Globals --------------------------------------------------------------
+
+	#/////////////////////////////////////////////////////////////////////////////////////
+	# Main Loop
+	#/////////////////////////////////////////////////////////////////////////////////////
+	#-----------------------------------------------------------------------------------
+	# Apply DietPi CPU governor and settings
+	G_THREAD_START /DietPi/dietpi/func/dietpi-set_cpu
+
+	# Apply LED triggers if set
+	G_THREAD_START /DietPi/dietpi/func/dietpi-led_control 1
+
+	# Disable video output on RPi when headless mode has been chosen
+	(( $G_HW_MODEL < 10 )) && grep -q '^[[:blank:]]*AUTO_SETUP_HEADLESS=1' /DietPi/dietpi.txt && tvservice -o
+	#-----------------------------------------------------------------------------------
+	G_THREAD_WAIT
+	exit
+	#-----------------------------------------------------------------------------------
+}

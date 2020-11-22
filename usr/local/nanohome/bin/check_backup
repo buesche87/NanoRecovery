@@ -1,0 +1,41 @@
+#!/bin/bash
+
+function check_status {
+
+	if pidof -x "pishrink" >/dev/null; then
+        status="shrinking"
+	elif pidof -x "system-backup" >/dev/null; then
+        status="running"
+	elif pidof -x "system-restore" >/dev/null; then
+		status="restoring"
+    else
+        status="idle"
+    fi
+	
+}
+
+if [ "$1" == "bkupdate" ]; then
+
+    last_backup=$(date -r /root/nanohome_backup.img '+%d.%m.%Y %H:%M')
+    printf "$last_backup"
+
+elif [ "$1" == "running" ]; then
+
+	check_status
+    printf "$status"
+
+elif [ "$1" == "web" ]; then
+	
+	bkpdate="$(date -r /root/nanohome_backup.img '+%d.%m.%Y %H:%M')"
+	size="$(ls -lh /root/nanohome_backup.img | cut -d' ' -f5)"
+	
+	check_status
+
+	echo "Last Backup:"
+	echo ""
+	echo "Date: $bkpdate"
+	echo "Size: $size"
+	echo "Status: $status"
+	echo "File: /root/nanohome_backup.img"
+
+fi

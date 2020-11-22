@@ -1,0 +1,4 @@
+#!/bin/sh
+
+dd if=/dev/mmcblk1 of=/root/nanohome_backup.img
+pishrink /root/nanohome_backup.img

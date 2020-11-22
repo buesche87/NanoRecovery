@@ -1,0 +1,23 @@
+#!/bin/sh
+
+if [ -z "$1" ]; then
+    echo "Keine Parameter definiert"
+	exit 1
+fi
+
+if [ "$1" = "boot" ]; then
+  mount /dev/mmcblk1p1 /mnt/emmc_boot
+  echo "$(ls -al /mnt/emmc_boot)"
+elif [ "$1" = "root" ]; then
+  mount /dev/mmcblk1p2 /mnt/emmc_root
+  echo "$(ls -al /mnt/emmc_root)"
+elif [ "$1" = "all" ]; then
+  mount /dev/mmcblk1p1 /mnt/emmc_boot
+  mount /dev/mmcblk1p2 /mnt/emmc_root
+  echo "$(ls -al /mnt/emmc_root)"
+elif [ "$1" = "unmount" ]; then
+  umount /mnt/emmc_root
+  echo "$(ls -al /mnt/emmc_root)"
+else
+  exit 1
+fi

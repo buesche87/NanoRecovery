@@ -1,0 +1,52 @@
+
+
+
+
+
+----- Recovery Mode -------
+
+wget https://raw.githubusercontent.com/Drewsif/PiShrink/master/pishrink.sh
+chmod +x pishrink.sh
+sudo mv pishrink.sh /usr/local/bin
+
+
+dd if=/dev/mmcblk1 of=/root/nanohome_backup.img
+pishrink.sh /root/nanohome_backup.img
+
+
+--- Normalbetrieb ---
+-> sd-karte als /mnt/recovery_sd mounten
+-> Möglichkeit zum Downloaden des Backups
+
+
+-> Backup/Restore per <select>
+-> Wird Restore gewählt, erscheint im output eine liste mit den backups 
+auswählen per checkboxen (Grafana, Influx-DB,  [WLAN Konfig] -> kommt einfach mit)
+-> File per Input-Box manuell eingeben (copy&paste -> if you du this you will lose modifications to your dashboard or measurements from the time the backup was created)
+-> Übergabe als parameter
+
+Für den Upgrade&Recovery Mode wird zuerst ein Backup auf die SD-Karte geschrieben. Danach startet das NanoHome neu, ab sdkarte in den "Recovery Mode"
+
+Recovery Mode:
+- Dackup -> Macht ein emmc-image auf die sdkarte und shrinkt es
+- Restore -> Schreibt das letzte Backup-Image zurück
+- Upgrade -> Installiert ein Upgrade-Paket (und schreibt daten-backups falls möglich zurück -> sonst per restore auf dem webinterface)
+- Restart (Shutdown, remove sd, restart)
+
+-> Achtung wegen accidental boot from sd
+
+solange eine sdkarte eingelegt ist, werden influxdb & grafana dashboards täglich per autobackup auf sdkarte gesichert -> 7 Versionen werden behalten.
+Manuelles Backup erstellt eigenes tar, 30 Versionen werden behalten
+
+
+
+----- Recovery SD erstellen ------
+
+Dietpi-Image mit Etcher schreiben
+Danach SD-Karte ins NanoHome und:
+
+git clone https://github.com/billw2/rpi-clone.git 
+cd rpi-clone
+sudo cp rpi-clone rpi-clone-setup /usr/local/sbin
+
+rpi-clone mmcblk1

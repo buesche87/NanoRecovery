@@ -1,0 +1,3 @@
+#!/bin/sh
+
+dd if=/root/nanohome_backup.img of=/dev/mmcblk1

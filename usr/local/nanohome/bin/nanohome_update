@@ -1,0 +1,43 @@
+#!/bin/bash
+
+update_file="/boot/update/nanohome_update_package*"
+update_script="/tmp/nhupd/nanohome_update_script.sh"
+
+if ls $update_file 1> /dev/null 2>&1; then
+
+	echo "update file found"
+	mkdir /tmp/nhupd
+
+	echo "extracting update file..."	
+	unzip $update_file -d /tmp/nhupd/
+
+	if ls $update_script 1> /dev/null 2>&1; then
+
+		echo "update script found"
+		chmod +x $update_script
+
+	else 
+
+		echo "Error: update script missing"
+		exit 1
+
+	fi
+	
+	echo "mounting emmc..."
+	mount_emmc root > /dev/null 2>&1
+	
+	echo "starting update script"
+	$update_script
+	
+	echo "script run, unmounting"
+	mount_emmc unmount > /dev/null 2>&1
+	
+	mkdir /boot/update/DONE
+	mv $update_file /boot/update/DONE
+	
+else
+
+	echo "Error: update file missing"
+	exit 1
+
+fi

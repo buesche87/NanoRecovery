@@ -1,0 +1,24 @@
+#!/bin/bash
+# Script to change between Wifi hotspot and client
+
+wifidev="wlan0" #device name to use. Default is wlan0.
+status="$(ip a | grep wlan0 | grep inet | awk '{print $2}' | rev | cut -c4- | rev)"
+
+if systemctl status hostapd | grep "(running)" >/dev/null 2>&1
+  then #hotspot running 
+
+    echo "H: $status"
+	
+elif { wpa_cli -i "$wifidev" status | grep 'ssid=NanoGate'; } >/dev/null 2>&1
+  then # NanoGate
+  
+    echo "N: $status"
+	
+elif { wpa_cli -i "$wifidev" status | grep 'ip_address'; } >/dev/null 2>&1
+  then # Wifi up
+  
+    echo "C: $status"
+	
+else
+    echo "Please wait..."
+fi 
